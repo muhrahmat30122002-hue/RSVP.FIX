@@ -1,0 +1,173 @@
+<html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RSVP Undangan</title>
+    <style>
+        body {
+            font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #fbf3e3;
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+            font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+        }
+        form {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input, textarea, select {
+            width: 100%;
+            padding: 10px;
+            margin-bottom: 15px;
+            border: 1px solid #000;
+            border-radius: 4px;
+        }
+        button {
+            background-color: #fbf3e3;
+            color: #000;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            width: 100%;
+        }
+        button:hover {
+            background-color: #fff;
+        }
+        #rsvp-list {
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        .rsvp-item {
+            border-bottom: 1px solid #eee;
+            padding: 10px 0;
+        }
+        .rsvp-item:last-child {
+            border-bottom: none;
+        }
+        #total-hadir {
+            font-size: 18px;
+            font-weight: bold;
+            color: #000;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>KONFIRMASI KEHADIRAN</h1>
+    <form id="rsvp-form">
+        <label for="nama">Nama:</label>
+        <input type="text" id="nama" name="nama" required>
+
+        <label for="kehadiran">Kehadiran:</label>
+        <select id="kehadiran" name="kehadiran" required>
+            <option value="">Pilih</option>
+            <option value="Hadir">Hadir</option>
+            <option value="Tidak Hadir">Tidak Hadir</option>
+        </select>
+
+        <label for="jumlah">Jumlah Tamu (jika Hadir):</label>
+        <select id="jumlah" name="jumlah">
+            <option value="0">0</option>
+            <option value="1">1</option>
+            <option value="2">2</option>
+            <option value="3">3</option>
+            <option value="4">4</option>
+            <option value="5+">5 atau lebih</option>
+        </select>
+
+        <label for="ucapan">Ucapan:</label>
+        <textarea id="ucapan" name="ucapan" rows="4" placeholder="Tulis ucapan Anda di sini"></textarea>
+
+        <button type="submit">Kirim</button>
+    </form>
+
+    <div id="rsvp-list">
+        <h2>Daftar Ucapan</h2>
+        <div id="total-hadir">Total Tamu Hadir: 0</div>
+        <div id="rsvp-items"></div>
+    </div>
+
+    <script>
+        // Fungsi untuk menghitung jumlah tamu dari string
+        function parseJumlah(jumlah) {
+            if (jumlah === "5+") return 5;
+            return parseInt(jumlah) || 0;
+        }
+
+        // Fungsi untuk menghitung total tamu hadir
+        function calculateTotalHadir(rsvps) {
+            return rsvps.reduce((total, rsvp) => {
+                if (rsvp.kehadiran === "Hadir") {
+                    return total + parseJumlah(rsvp.jumlah);
+                }
+                return total;
+            }, 0);
+        }
+
+        // Fungsi untuk memuat dan menampilkan daftar RSVP dari localStorage
+        function loadRSVPs() {
+            const rsvps = JSON.parse(localStorage.getItem('rsvps')) || [];
+            const rsvpItems = document.getElementById('rsvp-items');
+            rsvpItems.innerHTML = '';
+            rsvps.forEach(rsvp => {
+                const item = document.createElement('div');
+                item.className = 'rsvp-item';
+                item.innerHTML = `
+                    <strong>Nama:</strong> ${rsvp.nama}<br>
+                    <strong>Ucapan:</strong> ${rsvp.ucapan || 'Tidak ada'}
+                `;
+                rsvpItems.appendChild(item);
+            });
+
+            // Hitung dan tampilkan total tamu hadir
+            const totalHadir = calculateTotalHadir(rsvps);
+            document.getElementById('total-hadir').textContent = `Total Tamu Hadir: ${totalHadir}`;
+        }
+
+        // Event listener untuk form submission
+        document.getElementById('rsvp-form').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const nama = document.getElementById('nama').value;
+            const kehadiran = document.getElementById('kehadiran').value;
+            const jumlah = document.getElementById('jumlah').value;
+            const ucapan = document.getElementById('ucapan').value;
+
+            // Ambil data RSVP yang ada dari localStorage
+            const rsvps = JSON.parse(localStorage.getItem('rsvps')) || [];
+
+            // Tambahkan RSVP baru
+            rsvps.push({ nama, kehadiran, jumlah, ucapan });
+
+            // Simpan kembali ke localStorage
+            localStorage.setItem('rsvps', JSON.stringify(rsvps));
+
+            // Reset form
+            this.reset();
+
+            // Muat ulang daftar RSVP
+            loadRSVPs();
+        });
+
+        // Muat daftar RSVP saat halaman dimuat
+        window.addEventListener('load', loadRSVPs);
+    </script>
+</body>
+</html>
