@@ -6,7 +6,7 @@
     <title>RSVP Undangan</title>
     <style>
         body {
-            font-family:'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            font-family:'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
             max-width: 800px;
             margin: 0 auto;
             padding: 20px;
@@ -14,8 +14,7 @@
         }
         h1 {
             text-align: center;
-            color: #333;
-            font-family: 'Gill Sans', 'Gill Sans MT', Calibri, 'Trebuchet MS', sans-serif;
+            color: #000;
         }
         form {
             background: white;
@@ -35,6 +34,7 @@
             margin-bottom: 15px;
             border: 1px solid #000;
             border-radius: 4px;
+            box-sizing: border-box; /* Untuk responsivitas */
         }
         button {
             background-color: #fbf3e3;
@@ -44,6 +44,7 @@
             border-radius: 4px;
             cursor: pointer;
             width: 100%;
+            font-style: initial;
         }
         button:hover {
             background-color: #fff;
@@ -68,6 +69,17 @@
             text-align: center;
             margin-bottom: 20px;
         }
+        .message {
+            text-align: center;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+        .success { color: green; }
+        .error { color: red; }
+        @media (max-width: 600px) {
+            body { padding: 10px; }
+            h1 { font-size: 24px; }
+        }
     </style>
 </head>
 <body>
@@ -83,91 +95,117 @@
             <option value="Tidak Hadir">Tidak Hadir</option>
         </select>
 
-        <label for="jumlah">Jumlah Tamu (jika Hadir):</label>
-        <select id="jumlah" name="jumlah">
-            <option value="0">0</option>
-            <option value="1">1</option>
-            <option value="2">2</option>
-            <option value="3">3</option>
-            <option value="4">4</option>
-            <option value="5+">5 atau lebih</option>
-        </select>
+        <label for="jumlah">Jumlah Tamu (jika Hadir, minimal 1):</label>
+        <input type="number" id="jumlah" name="jumlah" min="0" value="0" required>
 
         <label for="ucapan">Ucapan:</label>
         <textarea id="ucapan" name="ucapan" rows="4" placeholder="Tulis ucapan Anda di sini"></textarea>
 
         <button type="submit">Kirim</button>
     </form>
+    <div id="message" class="message"></div>
 
     <div id="rsvp-list">
-        <h2>Daftar Ucapan</h2>
+        <h2>Ucapan</h2>
         <div id="total-hadir">Total Tamu Hadir: 0</div>
         <div id="rsvp-items"></div>
     </div>
 
-    <script>
-        // Fungsi untuk menghitung jumlah tamu dari string
-        function parseJumlah(jumlah) {
-            if (jumlah === "5+") return 5;
-            return parseInt(jumlah) || 0;
-        }
+    <!-- Firebase SDK -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-app.js";
+        import { getFirestore, collection, addDoc, getDocs, onSnapshot } from "https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore.js";
+
+        // Ganti dengan config Firebase Anda dari Firebase Console
+        const firebaseConfig = {
+            apiKey: "YOUR_API_KEY",
+            authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+            projectId: "YOUR_PROJECT_ID",
+            storageBucket: "YOUR_PROJECT_ID.appspot.com",
+            messagingSenderId: "YOUR_SENDER_ID",
+            appId: "YOUR_APP_ID"
+        };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
 
         // Fungsi untuk menghitung total tamu hadir
         function calculateTotalHadir(rsvps) {
             return rsvps.reduce((total, rsvp) => {
                 if (rsvp.kehadiran === "Hadir") {
-                    return total + parseJumlah(rsvp.jumlah);
+                    return total + (parseInt(rsvp.jumlah) || 0);
                 }
                 return total;
             }, 0);
         }
 
-        // Fungsi untuk memuat dan menampilkan daftar RSVP dari localStorage
+        // Fungsi untuk memuat dan menampilkan daftar RSVP dari Firestore
         function loadRSVPs() {
-            const rsvps = JSON.parse(localStorage.getItem('rsvps')) || [];
-            const rsvpItems = document.getElementById('rsvp-items');
-            rsvpItems.innerHTML = '';
-            rsvps.forEach(rsvp => {
-                const item = document.createElement('div');
-                item.className = 'rsvp-item';
-                item.innerHTML = `
-                    <strong>Nama:</strong> ${rsvp.nama}<br>
-                    <strong>Ucapan:</strong> ${rsvp.ucapan || 'Tidak ada'}
-                `;
-                rsvpItems.appendChild(item);
-            });
+            onSnapshot(collection(db, "rsvps"), (querySnapshot) => {
+                const rsvps = [];
+                querySnapshot.forEach((doc) => {
+                    rsvps.push(doc.data());
+                });
+                const rsvpItems = document.getElementById('rsvp-items');
+                rsvpItems.innerHTML = '';
+                rsvps.forEach(rsvp => {
+                    const item = document.createElement('div');
+                    item.className = 'rsvp-item';
+                    item.innerHTML = `
+                        <strong>Nama:</strong> ${rsvp.nama}<br>
+                        <strong>Kehadiran:</strong> ${rsvp.kehadiran}<br>
+                        <strong>Jumlah Tamu:</strong> ${rsvp.jumlah}<br>
+                        <strong>Ucapan:</strong> ${rsvp.ucapan || 'Tidak ada'}
+                    `;
+                    rsvpItems.appendChild(item);
+                });
 
-            // Hitung dan tampilkan total tamu hadir
-            const totalHadir = calculateTotalHadir(rsvps);
-            document.getElementById('total-hadir').textContent = `Total Tamu Hadir: ${totalHadir}`;
+                // Hitung dan tampilkan total tamu hadir
+                const totalHadir = calculateTotalHadir(rsvps);
+                document.getElementById('total-hadir').textContent = `Total Tamu Hadir: ${totalHadir}`;
+            });
         }
 
         // Event listener untuk form submission
-        document.getElementById('rsvp-form').addEventListener('submit', function(e) {
+        document.getElementById('rsvp-form').addEventListener('submit', async function(e) {
             e.preventDefault();
-            const nama = document.getElementById('nama').value;
+            const nama = document.getElementById('nama').value.trim();
             const kehadiran = document.getElementById('kehadiran').value;
-            const jumlah = document.getElementById('jumlah').value;
-            const ucapan = document.getElementById('ucapan').value;
+            const jumlah = parseInt(document.getElementById('jumlah').value) || 0;
+            const ucapan = document.getElementById('ucapan').value.trim();
 
-            // Ambil data RSVP yang ada dari localStorage
-            const rsvps = JSON.parse(localStorage.getItem('rsvps')) || [];
+            // Validasi sederhana
+            if (kehadiran === "Hadir" && jumlah < 1) {
+                showMessage("Jika hadir, jumlah tamu minimal 1.", "error");
+                return;
+            }
 
-            // Tambahkan RSVP baru
-            rsvps.push({ nama, kehadiran, jumlah, ucapan });
-
-            // Simpan kembali ke localStorage
-            localStorage.setItem('rsvps', JSON.stringify(rsvps));
-
-            // Reset form
-            this.reset();
-
-            // Muat ulang daftar RSVP
-            loadRSVPs();
+            try {
+                await addDoc(collection(db, "rsvps"), {
+                    nama,
+                    kehadiran,
+                    jumlah,
+                    ucapan
+                });
+                // Reset form
+                this.reset();
+                showMessage("RSVP berhasil dikirim!", "success");
+            } catch (error) {
+                console.error("Error adding document: ", error);
+                showMessage("Gagal mengirim RSVP. Coba lagi.", "error");
+            }
         });
 
+        // Fungsi untuk menampilkan pesan
+        function showMessage(text, type) {
+            const messageEl = document.getElementById('message');
+            messageEl.textContent = text;
+            messageEl.className = `message ${type}`;
+            setTimeout(() => messageEl.textContent = '', 5000); // Hilang setelah 5 detik
+        }
+
         // Muat daftar RSVP saat halaman dimuat
-        window.addEventListener('load', loadRSVPs);
+        loadRSVPs();
     </script>
 </body>
 </html>
